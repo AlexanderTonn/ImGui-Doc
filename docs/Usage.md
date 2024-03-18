@@ -1,11 +1,16 @@
 # Table of Contents
 
 - [Table of Contents](#table-of-contents)
-- [Begin / End](#begin--end)
+- [Window](#window)
+  - [Begin / End](#begin--end)
+  - [Window Flags](#window-flags)
+    - [Usecase: Fit ImGui Widgets to window size](#usecase-fit-imgui-widgets-to-window-size)
 - [Widgets](#widgets)
   - [Labels](#labels)
     - [Hiding labels](#hiding-labels)
   - [Buttons](#buttons)
+  - [Radio Buttons](#radio-buttons)
+  - [Combobox](#combobox)
   - [Menubar](#menubar)
     - [Menu Begin / End](#menu-begin--end)
     - [Menu Item](#menu-item)
@@ -13,6 +18,8 @@
 - [Arrangement](#arrangement)
   - [Spacing()](#spacing)
   - [Dummy()](#dummy)
+  - [Separator Text](#separator-text)
+  - [Separator](#separator)
   - [Columns](#columns)
 - [Create new ImGui Windows](#create-new-imgui-windows)
   - [Begin / End Child](#begin--end-child)
@@ -23,7 +30,11 @@
 
 ---
 
-# Begin / End
+# Window
+
+
+
+## Begin / End
 
 The `ImGui::Begin` and `ImGui::End` functions are used to create and end a new window, respectively. The `ImGui::Begin` function takes a label and an optional set of flags as parameters, and returns a boolean value that indicates whether the window is currently open. The `ImGui::End` function takes no parameters and simply ends the window.
 
@@ -41,6 +52,39 @@ if (ImGui::Begin("My Window"))
 [up](#table-of-contents)
 
 ---
+
+## Window Flags
+If you create a Window with ImGui::Begin() you can pass a set of flags to the function. The flags are used to customize the appearance and behavior of the window. The flags are defined in the `ImGuiWindowFlags` enum, and can be combined using the bitwise OR operator (`|`).
+
+### Usecase: Fit ImGui Widgets to window size
+The following example shows how you can realize that the ImGui Widgets are filling out the window size. This is useful if you want to create a fullscreen window with ImGui.
+
+```cpp
+// declaration
+    constexpr static auto window_flags = ImGuiWindowFlags_NoDecoration |
+                                         ImGuiWindowFlags_NoMove |
+                                         ImGuiWindowFlags_MenuBar ;
+    constexpr static auto window_size = ImVec2(1280.0F, 720.0F);
+    constexpr static auto window_pos = ImVec2(0.0F, 0.0F);
+
+// usage
+    // ... 
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(window_size);
+    if (ImGui::Begin("My Window", nullptr, window_flags))
+    {
+        // Here you can add code to draw widgets into the window.
+        ImGui::End();
+    }
+
+```
+
+[up](#table-of-contents)
+
+---
+
+
+
 
 # Widgets
 
@@ -78,6 +122,96 @@ if (ImGui::Button("Big Button", ImVec2(200, 50))) {
     // The button was clicked, perform an action
 }
 ```
+
+[up](#table-of-contents)
+
+---
+
+## Radio Buttons
+To create a group of three RadioButtons with ImGui, you need a variable to store the selected RadioButton index, and an array or list of labels for each RadioButton. Here's an example of how you can do this:
+
+```cpp
+struct ConfigData {
+    int iTypeSelection = 0;
+};
+
+struct Labels {
+    std::array<std::string> deviceTypes = {"Device 1", "Device 2"};
+};
+
+int main() {
+    ConfigData configData;
+    Labels labels;
+
+    // Creates a radio button for "Device 1" and stores the selection in configData.iTypeSelection
+    ImGui::RadioButton(labels.deviceTypes[0].c_str(), &configData.iTypeSelection, 1);
+    // Sets the cursor to the same line for the next widget
+    ImGui::SameLine();
+    // Creates a radio button for "Device 2" and stores the selection in configData.iTypeSelection
+    ImGui::RadioButton(labels.deviceTypes[1].c_str(), &configData.iTypeSelection, 2);
+
+    return 0;
+}
+```
+
+In this code, a loop is used to draw each RadioButton. The third parameter of the RadioButton function is the index of this RadioButton. When the user clicks on a RadioButton, selectedRadioButton is set to the index of this RadioButton. You can then use selectedRadioButton to determine which RadioButton was selected.
+
+
+[up](#table-of-contents)
+
+---
+
+## Combobox
+
+To create an ImGui Combobox, you need the following components:
+
+* **BeginCombo:** This function starts a new combobox. It takes two parameters: a unique identifier and the currently selected text.
+* **Selectable:** This function creates a selectable option within the combobox. It takes two parameters: the text to display and a boolean value indicating whether the option is currently selected or not.
+* **SetItemDefaultFocus:** This function sets the focus on the currently selected item. It is usually used after an option has been selected.
+* **EndCombo:** This function ends the combobox. It should always be called after you are done adding options to the combobox.
+
+```cpp
+template <size_t size>
+auto drawComboBox(std::string sCbLabel, std::array<std::string, size> sItems, bool xLabelOn) -> int
+{
+    static size_t iCurrentItem = 0; 
+
+    if(!xLabelOn)
+        sCbLabel = "###" + sCbLabel;
+
+    if(ImGui::BeginCombo(sCbLabel.c_str(), sItems[iCurrentItem].c_str()))
+    {
+        for (size_t i = 0; i < sItems.size(); i++)
+        {
+            bool isSelected = (iCurrentItem == i);
+            if (ImGui::Selectable(sItems[i].c_str(), isSelected))
+            {
+                iCurrentItem = i;
+            }
+            if (isSelected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+    return static_cast<int>(iCurrentItem);
+}
+```
+
+This is a template function drawComboBox in the BoilerConfig class. It takes three parameters: a string sCbLabel for the label of the combo box, an array sItems of strings for the items in the combo box, and a boolean xLabelOn to determine whether to prepend "###" to the label.
+
+The function begins by declaring a static variable iCurrentItem to keep track of the currently selected item in the combo box.
+
+If xLabelOn is false, "###" is prepended to sCbLabel. This is a feature of ImGui where "###" is used to create a unique ID for the widget, but it's not displayed.
+
+The function then starts a combo box with ImGui::BeginCombo. The label of the combo box is sCbLabel and the preview value is the current item.
+
+Inside the combo box, it iterates over each item in sItems. For each item, it checks if it's the currently selected item. If the item is selected in the GUI, iCurrentItem is updated to the current index. If the item is the currently selected one, it sets the default focus to this item using ImGui::SetItemDefaultFocus.
+
+After iterating over all items, it ends the combo box with ImGui::EndCombo.
+
+Finally, the function returns the index of the currently selected item as an integer.
 
 [up](#table-of-contents)
 
@@ -166,6 +300,12 @@ The `ImGui::Spacing()` function can be used to add a fixed amount of space betwe
 ## Dummy()
 
 The `ImGui::Dummy()` is a alternativ to the `ImGui::Spacing()`. It allows to pass an ImVec2 to create a fixed amount of space between widgets.
+
+## Separator Text
+The `ImGui::SeparatorText()` function is used to create a horizontal line with text in the middle. It takes a label as a parameter, which is used to display the text in the middle of the line.
+
+## Separator 
+The `ImGui::Separator()` function is used to create a horizontal line. It takes no parameters and simply creates a horizontal line.
 
 ## Columns
 
